@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 )
+
+const PORT = "8080"
+const BASE_URL = "http://localhost:" + PORT
 
 type Product struct {
 	Id    string `json:"id"`
@@ -64,5 +68,35 @@ func main() {
 		w.Write([]byte("Method not allowed"))
 	})
 
-	http.ListenAndServe(":8080", nil)
+	http.HandleFunc("/products/client", func(w http.ResponseWriter, r *http.Request) {
+		request, err := http.NewRequest(r.Method, BASE_URL+"/products", r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		client := &http.Client{}
+		response, err := client.Do(request)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		data, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(err.Error()))
+			return
+		}
+
+		w.WriteHeader(response.StatusCode)
+		w.Write(data)
+		return
+	})
+
+	if err := http.ListenAndServe(":"+PORT, nil); err != nil {
+		fmt.Println(err.Error())
+	}
 }
